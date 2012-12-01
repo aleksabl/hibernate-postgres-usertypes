@@ -3,6 +3,10 @@ package no.abab.commons.usertypes;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.ClassUtils;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.*;
+
 public class MyArrayUtils {
     public static Object[] toObjectArray(Object primitiveArray) {
         if (primitiveArray instanceof boolean[]) {
@@ -33,7 +37,7 @@ public class MyArrayUtils {
         return componentType;
     }
 
-    static Object cloneArray(Object value) {
+    static Object clone(Object value) {
         if(value == null)
             return null;
 
@@ -55,7 +59,41 @@ public class MyArrayUtils {
             return ArrayUtils.clone((short[]) value);
         if(value instanceof Object[])
             return ArrayUtils.clone((Object[]) value);
+        if(value instanceof Collection) {
+            return new LinkedList<Object>((Collection<?>) value);
+        }
+        if(value instanceof Cloneable) {
+            try {
+                Method method = value.getClass().getMethod("clone");
+                return method.invoke(value);
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
+            } catch (InvocationTargetException e) {
+                throw new RuntimeException(e);
+            } catch (NoSuchMethodException e) {
+                throw new RuntimeException(e);
+            }
+        }
 
-        throw new IllegalStateException("Unexpected type:" + value);
+        throw new IllegalStateException("Unexpected type:" + value.getClass() + "(" + value + ")");
     }
+
+    public static List<?> toList(Object o) {
+        if (o == null)
+            return Collections.emptyList();
+        if(o instanceof List)
+            return (List<?>) o;
+        else if (o instanceof Collection)
+            return new LinkedList<Object>((Collection<?>) o);
+        else if (o.getClass().isArray()) {
+            Class<?> componentType = o.getClass().getComponentType();
+            if (componentType.isPrimitive())
+                componentType = ClassUtils.primitiveToWrapper(componentType);
+            List<?> list = Arrays.asList(MyArrayUtils.toObjectArray(o));
+            return (List<?>) list;
+        } else {
+            throw new IllegalArgumentException("Unexpected type of argument: " + o.getClass() + "(" + o + ")");
+        }
+    }
+
 }
